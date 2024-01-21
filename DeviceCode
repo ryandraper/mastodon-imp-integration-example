@@ -1,0 +1,51 @@
+#require "HTS221.device.lib.nut:2.0.2"
+#require "LPS22HB.device.lib.nut:2.0.0"
+#require "WS2812.class.nut:3.0.0"
+
+// Define constants
+const SLEEP_TIME = 20;
+
+// Configure an I2C bus for sensor access
+local i2c = hardware.i2c89;
+i2c.configure(CLOCK_SPEED_400_KHZ);
+
+// Configure the sensors themselves
+local tempSensor = HTS221(i2c);
+tempSensor.setMode(HTS221_MODE.ONE_SHOT);
+
+local pressureSensor = LPS22HB(i2c);
+pressureSensor.softReset();
+
+// Configure SPI bus and power gate pin for the RGB LED
+local spi = hardware.spi257;
+spi.configure(MSB_FIRST, 7500);
+hardware.pin1.configure(DIGITAL_OUT, 1);
+local led = WS2812(spi, 1);
+
+// Take and store readings
+local reading = tempSensor.read();
+local pressure = pressureSensor.read();
+local conditions = { "temp":  reading.temperature,
+                     "humid": reading.humidity,
+                     "press": pressure.pressure };
+ 
+// Send 'conditions' to the agent
+agent.send("reading.sent", conditions);
+
+// Flash the LED
+led.set(0, [0,128,0]).draw();
+imp.sleep(0.5);
+led.set(0, [0,0,0]).draw();
+imp.sleep(0.5);
+led.set(0, [128,0,0]).draw();
+imp.sleep(0.5);
+led.set(0, [0,0,0]).draw();
+imp.sleep(0.5);
+led.set(0, [0,0,128]).draw();
+imp.sleep(0.5);
+led.set(0, [0,0,0]).draw();
+
+// Set the imp to sleep when idle, ie. program complete
+imp.onidle(function() {
+    server.sleepfor(SLEEP_TIME);
+});
