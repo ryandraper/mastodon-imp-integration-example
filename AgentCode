@@ -1,0 +1,41 @@
+// Declare global variables
+const MASTO_CLIENT_ID = "<enter your client key>"
+const MASTO_SECRET = "<enter your client secret>"
+const MASTO_TOKEN = "<enter your access token from your app settings>"
+//<mastodon.social is a specific server, find yours in the url when you login to your account>
+const STATUS_URL = "https://mastodon.social/api/v1/statuses"
+
+function motion(data) {
+    local message = format(
+        "Automated weather reading bot: [Temp(C): %.2f | Humid: %.2f | Pressure: %.2f]", 
+        data.temp, data.humid, data.press
+    );
+    server.log(message);
+
+    // Prepare the request with a JSON payload
+    //urlencode is very important here
+    local body = http.urlencode({"status":message});
+    local extraHeaders = {
+        "Authorization":"Bearer "+MASTO_TOKEN, 
+        "Content-Type":"application/x-www-form-urlencoded"
+    };
+    local request = http.post(STATUS_URL, extraHeaders, body);
+
+    // Send and time the message
+    local start = date().usec;
+    local incomingDataTable = request.sendsync();
+    local duration = date().usec - start;
+    server.log("Execution blocked for for " + (duration / 1000) + " milliseconds");
+    
+    // Display the received data
+    if (incomingDataTable.statuscode == 200) {
+        server.log("Code: 200. Message: " + incomingDataTable.body);
+    } else {
+        server.error("Error code: " + incomingDataTable.statuscode);
+        server.error("Error body: " + incomingDataTable.body);
+    }
+    
+}
+
+// Register a function to receive sensor data from the device
+device.on("reading.sent", motion);
